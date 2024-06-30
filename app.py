@@ -27,31 +27,38 @@ def string_to_coord(pq):
     return p, q, -p + -q
 
 
-@app.route('/', methods=("POST",))
+@app.route('/', methods=['POST'])
 def ai_move():
-    state = vidstige.hive.State()
     data = request.json
-    state.move_number = int(data["move_number"])
-    for i, ply in enumerate(data["hand"]):
-        if len(ply):
-            for k, v in ply.items():
-                state.players[i].hand[char_to_tile(k)] = v
-    if len(data["board"]):
-        for pq, tiles in data["board"].items():
-            for player, tile in tiles:
-                state.grid[string_to_coord(pq)] = state.players[player], char_to_tile(tile)
+    state = vidstige.hive.State()
+    try:
+        state.move_number = int(data["move_number"])
+        for i, ply in enumerate(data["hand"]):
+            if len(ply):
+                for k, v in ply.items():
+                    state.players[i].hand[char_to_tile(k)] = v
+        if len(data["board"]):
+            for pq, tiles in data["board"].items():
+                for player, tile in tiles:
+                    state.grid[string_to_coord(pq)] = state.players[player], char_to_tile(tile)
+    except KeyError as e:
+        return jsonify({"error": f"Missing required key: {str(e)}"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
     depth = 3
     inf = 2 ** 64
 
-    move = vidstige.hive.minmax(state, state.player(), depth, -inf, inf)[0]
-    if move is None or move[0] == 'nothing':
-        return jsonify('pass', None, None)
-    elif move[0] == 'place':
-        return jsonify('play', tile_to_char(move[1]), coord_to_string(move[2]))
-    elif move[0] == 'move':
-        return jsonify('move', coord_to_string(move[1]), coord_to_string(move[2]))
-
+    try:
+        move = vidstige.hive.minmax(state, state.player(), depth, -inf, inf)[0]
+        if move is None or move[0] == 'nothing':
+            return jsonify('pass', None, None)
+        elif move[0] == 'place':
+            return jsonify('play', tile_to_char(move[1]), coord_to_string(move[2]))
+        elif move[0] == 'move':
+            return jsonify('move', coord_to_string(move[1]), coord_to_string(move[2]))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run()
